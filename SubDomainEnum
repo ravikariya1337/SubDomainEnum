@@ -7,10 +7,13 @@ read Filename
 while read line; do amass enum -d $line -w /home/root/data/manual/2m-subdomains.txt -o amass1.txt; done < $Filename
 while read line; do amass enum -d $line -o amass2.txt; done < $Filename
 while read line; do assetfinder --subs-only $line | tee -a assetfinder.txt; done < $Filename
-while read line; do subfinder -v -all -d $line -o subfinder.txt; done < $Filename
+while read line; do subfinder -v -d $line -o subfinder.txt; done < $Filename
 while read line; do sublist3r -v -b -d $line -o sublist3r.txt; done < $Filename
 cat amass1.txt amass2.txt assetfinder.txt subfinder.txt sublist3r.txt | sort -u | tee -a All_Subdomains.txt
 cat All_Subdomains.txt | httpx -o httpx.txt
 cat All_Subdomains.txt | httpx -sc -td -server -title -location -o httpx2.txt
-nuclei -t /root/nuclei-templates/ -l httpx.txt -o nuclei.txt
+nuclei -t /root/nuclei-templates/ -l httpx -o nuclei.txt
 gowitness file -f httpx.txt -p Gowitness/
+mkdir aquatone
+cat httpx.txt | aquatone -out aquatone/
+cat All_Subdomains.txt | gauplus -subs -b png,jpg,gif,jpeg,swf,woff,svg -o allUrls.txt ; cat allUrls.txt | httpx -mc 200,403 -o LiveUrls.txt | nuclei -t /home/ravi/nuclei-templates/ -l LiveUrls.txt -es info -o nucleiall.txt
