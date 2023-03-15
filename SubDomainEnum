@@ -4,16 +4,20 @@ echo "Enter Filename:"
 
 read Filename
 
-while read line; do amass enum -d $line -w /home/root/data/manual/2m-subdomains.txt -o amass1.txt; done < $Filename
+while read line; do amass enum -d $line -w /home/ravi/data/manual/2m-subdomains.txt -o amass1.txt; done < $Filename
 while read line; do amass enum -d $line -o amass2.txt; done < $Filename
 while read line; do assetfinder --subs-only $line | tee -a assetfinder.txt; done < $Filename
 while read line; do subfinder -v -d $line -o subfinder.txt; done < $Filename
-while read line; do sublist3r -v -b -d $line -o sublist3r.txt; done < $Filename
-cat amass1.txt amass2.txt assetfinder.txt subfinder.txt sublist3r.txt | sort -u | tee -a All_Subdomains.txt
-cat All_Subdomains.txt | httpx -o httpx.txt
+cat amass1.txt amass2.txt assetfinder.txt subfinder.txt | sort -u | tee -a All_Subdomains.txt
 cat All_Subdomains.txt | httpx -sc -td -server -title -location -o httpx2.txt
-nuclei -t /root/nuclei-templates/ -l httpx -o nuclei.txt
+nuclei -t /home/ravi/nuclei-templates/ -l httpx -o nuclei.txt
 gowitness file -f httpx.txt -p Gowitness/
 mkdir aquatone
-cat httpx.txt | aquatone -out aquatone/
-cat All_Subdomains.txt | gauplus -subs -b png,jpg,gif,jpeg,swf,woff,svg -o allUrls.txt ; cat allUrls.txt | httpx -mc 200,403 -o LiveUrls.txt | nuclei -t /home/ravi/nuclei-templates/ -l LiveUrls.txt -es info -o nucleiall.txt
+cat httpx.txt | aquatone -ports xlarge -out aquatone/
+cat All_Subdomains.txt | gau --subs --blacklist png,jpg,gif,jpeg,swf,woff,svg,css --o gau.txt
+katana -list All_Subdomains.txt -jc -kf -aff -ef png,jpg,gif,jpeg,swf,woff,svg,css -o katana.txt
+cat gau.txt katana.txt | sort -u | tee -a allUrls.txt | httpx -mc 200,403 -o LiveUrls.txt
+nuclei -t /home/ravi/nuclei-templates/ -l LiveUrls.txt -es info -o nucleiAll.txt
+echo "Recon is Done" | notify -silent
+cat All_Subdomains.txt | httpx -o httpx.txt | for i in $(cat httpx.txt); do DOMAIN=$(echo $i | unfurl format %d); ffuf -u $i/FUZZ -w /home/ravi/data/manual/raft-large-directories.txt -fc 404 -recursion -r -o ${DOMAIN}_ffuf.txt; done
+echo "FFUF is Done" | notify -silent
