@@ -9,21 +9,34 @@ fi
 # Read the input file from the command-line arguments
 Filename="$2"
 
-# The rest of the script remains the same
+echo "Running amass..." | notify -silent
 while read line; do amass enum -d $line -w /root/data/manual/2m-subdomains.txt -o amass1.txt; done < $Filename
 while read line; do amass enum -d $line -o amass2.txt; done < $Filename
+echo "Running assetfinder..." | notify -silent
 while read line; do assetfinder --subs-only $line | tee -a assetfinder.txt; done < $Filename
+echo "Running subfinder..." | notify -silent
 while read line; do subfinder -v -d $line -o subfinder.txt; done < $Filename
-cat amass1.txt amass2.txt assetfinder.txt subfinder.txt | sort -u | tee -a All_Subdomains.txt
+echo "Merging and sorting subdomain results..." | notify -silent
+cat amass1.txt amass2.txt assetfinder.txt subfinder.txt | sort -u | tee -a All_Subdomains_temp.txt
+echo "Removing out-of-scope domains from the All_Subdomains.txt file..."
+grep -v -f notarget.txt All_Subdomains_temp.txt > All_Subdomains.txt
+rm All_Subdomains_temp.txt
+echo "Scanning live web servers with httpx..." | notify -silent
 cat All_Subdomains.txt | httpx -p 80,81,300,443,591,593,832,981,1010,1311,2082,2087,2095,2096,2480,3000,3128,3333,4243,4567,4711,4712,4993,5000,5104,5108,5800,6543,7000,7396,7474,8000,8001,8008,8014,8042,8069,8080,8081,8088,8090,8091,8118,8123,8172,8222,8243,8280,8281,8333,8443,8500,8834,8880,8888,8983,9000,9043,9060,9080,9090,9091,9200,9443,9800,9981,12443,16080,18091,18092,20720,28017 -o httpx.txt
+echo "Running additional httpx scan..." | notify -silent
 cat All_Subdomains.txt | httpx -sc -td -server -title -location -o httpx2.txt
+echo "Scanning for known vulnerabilities with nuclei..." | notify -silent
 nuclei -t /root/nuclei-templates/ -l httpx.txt -o nuclei.txt
 mkdir aquatone
+echo "Taking screenshots with aquatone..." | notify -silent
 cat httpx.txt | aquatone -ports xlarge -out aquatone/
-cat httpx.txt | gau --subs --blacklist png,jpg,gif,jpeg,swf,woff,svg,css --o gau.txt
+echo "Finding and filtering URLs with gau and katana..." | notify -silent
+cat httpx.txt | gau --subs --verbose --blacklist png,jpg,gif,jpeg,swf,woff,svg,css --o gau.txt
 katana -list httpx.txt -jc -kf -aff -ef png,jpg,gif,jpeg,swf,woff,svg,css -o katana.txt
+echo "Filtering live URLs and running nuclei scan..." | notify -silent
 cat gau.txt katana.txt | sort -u | tee -a allUrls.txt | httpx -mc 200,403 -o LiveUrls.txt
 nuclei -t /root/nuclei-templates/ -l LiveUrls.txt -es info -o nucleiAll.txt
 echo "Recon is Done" | notify -silent
+echo "Performing ffuf directory brute-forcing..." | notify -silent
 cat httpx.txt | for i in $(cat httpx.txt); do DOMAIN=$(echo $i | unfurl format %d); ffuf -u $i/FUZZ -w /root/data/manual/raft-large-directories.txt -fc 404 -recursion -r -o ${DOMAIN}_ffuf.txt; done
 echo "FFUF is Done" | notify -silent
