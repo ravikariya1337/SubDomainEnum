@@ -1,13 +1,20 @@
 #!/bin/bash
 
 # Check if the user provided the required arguments
-if [ "$#" -ne 2 ] || [ "$1" != "-f" ]; then
-    echo "Usage: $0 -f <path_to_file>"
+if [ "$#" -lt 2 ] || [ "$1" != "-f" ]; then
+    echo "Usage: $(basename $0) -f <path_to_file> [-n <path_to_notarget_file>]"
     exit 1
 fi
 
 # Read the input file from the command-line arguments
 Filename="$2"
+
+# Check if the notarget file is provided
+if [ "$#" -eq 4 ] && [ "$3" == "-n" ]; then
+    NotargetFile="$4"
+else
+    NotargetFile=""
+fi
 
 echo "Running amass..." | notify -silent
 while read line; do amass enum -d $line -w /root/data/manual/2m-subdomains.txt -o amass1.txt; done < $Filename
@@ -18,8 +25,15 @@ echo "Running subfinder..." | notify -silent
 while read line; do subfinder -v -d $line -o subfinder.txt; done < $Filename
 echo "Merging and sorting subdomain results..." | notify -silent
 cat amass1.txt amass2.txt assetfinder.txt subfinder.txt | sort -u | tee -a All_Subdomains_temp.txt
-echo "Removing out-of-scope domains from the All_Subdomains.txt file..."
-grep -v -f notarget.txt All_Subdomains_temp.txt > All_Subdomains.txt
+
+# Check if notarget file is provided
+if [ -n "$NotargetFile" ] && [ -f "$NotargetFile" ]; then
+    echo "Removing out-of-scope domains from the All_Subdomains.txt file..."
+    grep -v -f "$NotargetFile" All_Subdomains_temp.txt > All_Subdomains.txt
+else
+    echo "No notarget file provided, skipping out-of-scope domain removal..."
+    mv All_Subdomains_temp.txt All_Subdomains.txt
+fi
 rm All_Subdomains_temp.txt
 echo "Scanning live web servers with httpx..." | notify -silent
 cat All_Subdomains.txt | httpx -p 80,81,300,443,591,593,832,981,1010,1311,2082,2087,2095,2096,2480,3000,3128,3333,4243,4567,4711,4712,4993,5000,5104,5108,5800,6543,7000,7396,7474,8000,8001,8008,8014,8042,8069,8080,8081,8088,8090,8091,8118,8123,8172,8222,8243,8280,8281,8333,8443,8500,8834,8880,8888,8983,9000,9043,9060,9080,9090,9091,9200,9443,9800,9981,12443,16080,18091,18092,20720,28017 -o httpx.txt
