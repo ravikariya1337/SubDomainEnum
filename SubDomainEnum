@@ -44,8 +44,8 @@ echo "Scanning live web servers with httpx..." | notify -silent
 cat All_Subdomains.txt | httpx -ss -o httpx.txt &
 cat All_Subdomains.txt | httpx -sc -td -title -cdn -location -server -o httpx2.txt 
 wait
-cat httpx.txt | gau --blacklist css,jpg,jpeg,png,svg,ico --verbose --o gau.txt &
-katana -list httpx.txt -jc -jsl -aff -ef css,jpg,jpeg,png,svg,ico -verbose -o katana.txt
+cat httpx.txt | gau --blacklist css,jpg,jpeg,png,svg,ico --o gau.txt &
+katana -list httpx.txt -jc -jsl -aff -ef css,jpg,jpeg,png,svg,ico -o katana.txt
 wait
 cat gau.txt katana.txt | sort -u | httpx -mc 200,403,401 -o LiveUrls.txt
 echo "Recon is Done" | notify -silent
